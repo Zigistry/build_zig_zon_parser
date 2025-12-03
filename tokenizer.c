@@ -1,4 +1,5 @@
 #include "./bzz.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -34,13 +35,18 @@ int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max
             tokens[count++] = (Token) { EQUALS, "=" };
         } else if (build_zig_zon_raw_data[i] == '"') {
             i++; // skip opening quote
-            char any_string[MAX_STRING_LENGTH];
+            int capacity = 101;
+            char *any_string = malloc(sizeof(char)*capacity);
             int string_pos = 0;
             // I am doing - 1 to add a null terminator, same here
-            while (build_zig_zon_raw_data[i] && string_pos < MAX_STRING_LENGTH - 1) {
+            while (build_zig_zon_raw_data[i]) {
                 if (build_zig_zon_raw_data[i] == '\\' && build_zig_zon_raw_data[i + 1]) {
                     any_string[string_pos++] = build_zig_zon_raw_data[i++];
                     any_string[string_pos++] = build_zig_zon_raw_data[i++];
+                    if(capacity == string_pos + 1) {
+                        capacity = capacity + 100;
+                        any_string = realloc(any_string, sizeof(char)*capacity);
+                    }
                 } else if (build_zig_zon_raw_data[i] == '"') {
                     i++;
                     break;
@@ -53,22 +59,43 @@ int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max
             continue;
         } else if (build_zig_zon_raw_data[i] == ',') {
             tokens[count++] = (Token) { COMMA, "," };
-        } else if (isalnum(build_zig_zon_raw_data[i]) || build_zig_zon_raw_data[i] == '_') {
-            char identifier[MAX_STRING_LENGTH];
+        } else if (isalpha(build_zig_zon_raw_data[i]) || build_zig_zon_raw_data[i] == '_') {
+            int capacity = 0;
+            char *identifier = malloc(sizeof(char)*capacity);
             int identifier_position = 0;
             while (isalnum(build_zig_zon_raw_data[i]) || build_zig_zon_raw_data[i] == '_') {
                 identifier[identifier_position++] = build_zig_zon_raw_data[i++];
+                if(capacity == identifier_position + 1) {
+                    capacity = capacity + 100;
+                    identifier = realloc(identifier, sizeof(char)*capacity);
+                }
             }
             identifier[identifier_position] = '\0';
             tokens[count++] = (Token) { IDENTIFIER, strdup(identifier) };
             continue;
+        } else if (build_zig_zon_raw_data[i] == '0') {
+            i++;
+            if (build_zig_zon_raw_data[i]) {
+                if (build_zig_zon_raw_data[i] == 'b') {
+                    do
+                        i++;
+                    while (build_zig_zon_raw_data[i] && (build_zig_zon_raw_data[i] == '0' || build_zig_zon_raw_data[i] == '1' || build_zig_zon_raw_data[i] == '_'));
+                } else if(build_zig_zon_raw_data[i] == 'o') {
+                    do
+                        i++;
+                    while (build_zig_zon_raw_data[i] && (build_zig_zon_raw_data[i] == '0' || build_zig_zon_raw_data[i] == '1'));
+                } else if(build_zig_zon_raw_data[i] == 'x') {
+
+                } else {
+                    printf("Integer can't start with 0.");
+                }
+            }
         }
         i++;
     }
     tokens[count] = (Token) { 0 };
     return TOKENIZING_SUCCESSFULL;
 }
-
 
 const char* const TEST = "// comment\n .{"
                          "    .name = .capy,"
@@ -104,9 +131,10 @@ const char* const TEST = "// comment\n .{"
                          "},"
                          "}";
 
-void free_tokens(Token* tokens) {
-    for(int i = 0; tokens[i].value; i++) {
-        if(tokens[i].type == STRING || tokens[i].type == IDENTIFIER) {
+void free_tokens(Token* tokens)
+{
+    for (int i = 0; tokens[i].value; i++) {
+        if (tokens[i].type == STRING || tokens[i].type == IDENTIFIER) {
             free(tokens[i].value);
         }
     }
@@ -118,10 +146,10 @@ int main()
     Token tokens[700];
     const size_t max_tokens = 700;
 
-    if(tokenize(build_zig_zon_raw_data, tokens, max_tokens) == TOKENIZING_ERROR) {
+    if (tokenize(build_zig_zon_raw_data, tokens, max_tokens) == TOKENIZING_ERROR) {
         printf("Tokenizing error.\n");
     } else {
-        for(int i = 0; tokens[i].value; i++) {
+        for (int i = 0; tokens[i].value; i++) {
             printf("%s", tokens[i].value);
         }
     }

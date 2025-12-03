@@ -5,13 +5,13 @@
 
 #define TOKENIZING_ERROR -1
 #define TOKENIZING_SUCCESSFULL 0
+#define INTEGER_STARTS_WITH_0_ERROR -2
 
 #define PARSING_ERROR -1
 #define PARSING_SUCCESSFUL 0
 
 
 // Limiting any string in buid.zig.zon to be 400
-#define MAX_STRING_LENGTH 400
 
 typedef enum {
     DOT,

@@ -44,6 +44,7 @@ const char* const TEST = "// comment\n .{"
 
 int main()
 {
+
      // Null terminated
 
     // parse only minimum version

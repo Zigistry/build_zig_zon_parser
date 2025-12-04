@@ -43,3 +43,6 @@ typedef struct {
     Dependency* dependencies;
     char* paths[];
 } build_zig_zon_parsed_data;
+
+int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max_tokens);
+void free_tokens(Token* tokens);

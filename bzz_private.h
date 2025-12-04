@@ -1,7 +1,7 @@
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define TOKENIZING_ERROR -1
 #define TOKENIZING_SUCCESSFULL 0
@@ -9,7 +9,6 @@
 
 #define PARSING_ERROR -1
 #define PARSING_SUCCESSFUL 0
-
 
 // Limiting any string in buid.zig.zon to be 400
 
@@ -21,6 +20,10 @@ typedef enum {
     STRING,
     COMMA,
     IDENTIFIER,
+    BINARY,
+    OCTAL,
+    HEXADECIMAL,
+    INTEGER,
 } types;
 
 typedef struct {

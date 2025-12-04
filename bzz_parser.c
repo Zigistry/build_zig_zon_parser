@@ -165,6 +165,7 @@ int parse(Token* tokens, build_zig_zon_parsed_data* result)
 }
 
 const char* const TEST = "// comment\n .{"
+                         "    .something = 10,"
                          "    .name = .capy,"
                          "    .fingerprint = 0x4724968847bbbb92,"
                          "    .version = \"0.4.1\","
@@ -202,7 +203,6 @@ int main() {
     const char* build_zig_zon_raw_data = TEST;
     Token tokens[700];
     const size_t max_tokens = 700;
-    printf("const char *restrict, ...");
 
     if (tokenize(build_zig_zon_raw_data, tokens, max_tokens) == TOKENIZING_ERROR) {
         printf("Tokenizing error.\n");

@@ -55,12 +55,12 @@ int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max
                 }
             }
             any_string[string_pos] = '\0';
-            tokens[count++] = (Token) { STRING, strdup(any_string) };
+            tokens[count++] = (Token) { STRING, any_string };
             continue;
         } else if (build_zig_zon_raw_data[i] == ',') {
             tokens[count++] = (Token) { COMMA, "," };
         } else if (isalpha(build_zig_zon_raw_data[i]) || build_zig_zon_raw_data[i] == '_') {
-            int capacity = 0;
+            int capacity = 101;
             char* identifier = malloc(sizeof(char) * capacity);
             int identifier_position = 0;
             while (isalnum(build_zig_zon_raw_data[i]) || build_zig_zon_raw_data[i] == '_') {
@@ -71,25 +71,78 @@ int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max
                 }
             }
             identifier[identifier_position] = '\0';
-            tokens[count++] = (Token) { IDENTIFIER, strdup(identifier) };
+            tokens[count++] = (Token) { IDENTIFIER, identifier };
             continue;
         } else if (build_zig_zon_raw_data[i] == '0') {
-            i++;
-            if (build_zig_zon_raw_data[i]) {
-                if (build_zig_zon_raw_data[i] == 'b') {
-                    do
-                        i++;
-                    while (build_zig_zon_raw_data[i] && (build_zig_zon_raw_data[i] == '0' || build_zig_zon_raw_data[i] == '1' || build_zig_zon_raw_data[i] == '_'));
-                } else if (build_zig_zon_raw_data[i] == 'o') {
-                    do
-                        i++;
-                    while (build_zig_zon_raw_data[i] && (build_zig_zon_raw_data[i] == '0' || build_zig_zon_raw_data[i] == '1'));
-                } else if (build_zig_zon_raw_data[i] == 'x') {
+            int capacity = 101;
+            int pos = 0;
+            char* my_integer = malloc(sizeof(char) * capacity);
 
+            my_integer[0] = '0';
+            i++;
+            pos++;
+
+            if (build_zig_zon_raw_data[i]) {
+                my_integer[pos] = build_zig_zon_raw_data[i];
+                if (build_zig_zon_raw_data[i] == 'b') {
+                    my_integer[1] = 'b';
+                    do {
+                        i++;
+                        pos++;
+                        // -1 for \0 and -1 for the next character hence doing -2.
+                        if (pos == capacity - 2) {
+                            capacity += 100;
+                            my_integer = realloc(my_integer, sizeof(char) * capacity);
+                        }
+                        my_integer[pos] = build_zig_zon_raw_data[i];
+                    } while (build_zig_zon_raw_data[i] && (build_zig_zon_raw_data[i] == '0' || build_zig_zon_raw_data[i] == '1' || build_zig_zon_raw_data[i] == '_'));
+                    tokens[count++] = (Token) { BINARY, my_integer };
+                } else if (build_zig_zon_raw_data[i] == 'o') {
+                    my_integer[1] = 'o';
+                    do {
+                        i++;
+                        pos++;
+                        // -1 for \0 and -1 for the next character hence doing -2.
+                        if (pos == capacity - 2) {
+                            capacity += 100;
+                            my_integer = realloc(my_integer, sizeof(char) * capacity);
+                        }
+                        my_integer[pos] = build_zig_zon_raw_data[i];
+                    } while (build_zig_zon_raw_data[i] && (build_zig_zon_raw_data[i] >= '0' && build_zig_zon_raw_data[i] <= '8'));
+                    tokens[count++] = (Token) { OCTAL, my_integer };
+                } else if (build_zig_zon_raw_data[i] == 'x') {
+                    my_integer[1] = 'x';
+                    do {
+                        i++;
+                        pos++;
+                        // -1 for \0 and -1 for the next character hence doing -2.
+                        if (pos == capacity - 2) {
+                            capacity += 100;
+                            my_integer = realloc(my_integer, sizeof(char) * capacity);
+                        }
+                        my_integer[pos] = build_zig_zon_raw_data[i];
+                    } while (build_zig_zon_raw_data[i] && ((build_zig_zon_raw_data[i] >= '0' && build_zig_zon_raw_data[i] <= '9') || (build_zig_zon_raw_data[i] >= 'A' && build_zig_zon_raw_data[i] <= 'F') || (build_zig_zon_raw_data[i] >= 'a' && build_zig_zon_raw_data[i] <= 'f')));
+                    tokens[count++] = (Token) { HEXADECIMAL, my_integer };
                 } else {
                     printf("Integer can't start with 0.");
+                    return PARSING_ERROR;
                 }
             }
+        } else if (build_zig_zon_raw_data[i] >= '1' && build_zig_zon_raw_data[i] <= '9') {
+            int capacity = 101;
+            int pos = 0;
+            char* my_integer = malloc(sizeof(char) * capacity);
+            my_integer[pos] = build_zig_zon_raw_data[i];
+            do {
+                i++;
+                pos++;
+                if (pos == capacity - 2) {
+                    capacity += 100;
+                    my_integer = realloc(my_integer, sizeof(char) * capacity);
+                }
+                my_integer[pos] = build_zig_zon_raw_data[i];
+            } while (build_zig_zon_raw_data[i] >= '0' && build_zig_zon_raw_data[i] <= '9');
+            tokens[count++] = (Token) { INTEGER, my_integer };
         }
         i++;
     }
@@ -97,44 +150,10 @@ int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max
     return TOKENIZING_SUCCESSFULL;
 }
 
-// const char* const TEST = "// comment\n .{"
-//                          "    .name = .capy,"
-//                          "    .fingerprint = 0x4724968847bbbb92,"
-//                          "    .version = \"0.4.1\","
-//                          "    .minimum_zig_version = \"0.14.1\","
-//                          "    .dependencies = .{"
-//                          "        .@\"zig-objc\" = .{"
-//                          "            .url = "
-//                          "\"https://github.com/mitchellh/zig-objc/archive/"
-//                          "362d12f4d91dfde84668e0befc5a8ca76659965a.zip\","
-//                          "            .hash = "
-//                          "\"12206038da3a8d42de25babfadaa3b8fb01c223850a1f1ce309034172d150df61a8c\","
-//                          "            .lazy = true,"
-//                          "        },"
-//                          "        .macos_sdk = .{"
-//                          "            .url = "
-//                          "\"https://github.com/mitchellh/zig-build-macos-sdk/archive/"
-//                          "a4ea24f105902111633c6ae9f888b676ac5e36df.tar.gz\","
-//                          "            .hash = "
-//                          "\"12209cc9ee372456eda52b71cf9ae77dcc707fa42c9f9d68996b5bf7495b53229c2e\","
-//                          "            .lazy = true,"
-//                          "        },"
-//                          "        .zigimg = .{"
-//                          "            .url = "
-//                          "\"git+https://github.com/zigimg/"
-//                          "zigimg#74caab5edd7c5f1d2f7d87e5717435ce0f0affa1\","
-//                          "            .hash = "
-//                          "\"zigimg-0.1.0-8_eo2nWlEgCddu8EGLOM_RkYshx3sC8tWv-yYA4-htS6\","
-//                          "        },"
-//                          "    },"
-//                          "    .paths = .{"
-//                          "},"
-//                          "}";
-
 void free_tokens(Token* tokens)
 {
     for (int i = 0; tokens[i].value; i++) {
-        if (tokens[i].type == STRING || tokens[i].type == IDENTIFIER) {
+        if (tokens[i].type == STRING || tokens[i].type == IDENTIFIER || tokens[i].type == INTEGER) {
             free(tokens[i].value);
         }
     }

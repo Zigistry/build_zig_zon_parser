@@ -16,7 +16,6 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
 {
     int depth = 0;
     for (int i = 0; tokens[i].value; i++) {
-        // printf("TOKEN: %s\n", tokens[i].value);
         if (tokens[i].type == L_BRACE) {
             depth++;
             continue;
@@ -47,7 +46,7 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                 }
                 i++;
                 if (tokens[i].value && tokens[i].type == DOT) {
-                    // if its identifier 
+                    // if its identifier
                     i++;
                 }
                 if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
@@ -96,11 +95,11 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                 // from here we will put a loop to loop the dependencies
                 int dependency_count = 0;
                 int dependency_capacity = 20;
-                result->dependencies = malloc(sizeof(Dependency)*dependency_capacity);
-                while (tokens[i].value) {
-                    if(dependency_count == dependency_capacity-2) {
+                result->dependencies = malloc(sizeof(Dependency) * dependency_capacity);
+                while (tokens[i].value && depth > 1) {
+                    if (dependency_count == dependency_capacity - 2) {
                         dependency_capacity += 20;
-                        result->dependencies = realloc(result->dependencies, sizeof(Dependency)*dependency_capacity);
+                        result->dependencies = realloc(result->dependencies, sizeof(Dependency) * dependency_capacity);
                     }
                     if (tokens[i].type != DOT) {
                         return PARSING_ERROR;
@@ -110,6 +109,7 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                     if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
                         return PARSING_ERROR;
                     } else {
+                        printf("%s\n", tokens[i].value);
                         result->dependencies[dependency_count].name = tokens[i].value;
                     }
                     i++;
@@ -147,14 +147,14 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                         if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
                             return PARSING_ERROR;
                         } else {
-                            if(strcmp(key_name, "url")){
+                            if (strcmp(key_name, "url") == 0) {
                                 result->dependencies[dependency_count].url = tokens[i].value;
-                            } else if (strcmp(key_name, "hash")) {
+                            } else if (strcmp(key_name, "hash") == 0) {
                                 result->dependencies[dependency_count].hash = tokens[i].value;
-                            } else if (strcmp(key_name, "path")) {
+                            } else if (strcmp(key_name, "path") == 0) {
                                 result->dependencies[dependency_count].path = tokens[i].value;
-                            } else if (strcmp(key_name, "lazy")) {
-                                result->dependencies[dependency_count].lazy = strcmp(tokens[i].value, "true") ? 1 : 0;
+                            } else if (strcmp(key_name, "lazy") == 0) {
+                                result->dependencies[dependency_count].lazy = strcmp(tokens[i].value, "true") == 0 ? 1 : 0;
                             }
                         }
                         i++;
@@ -163,11 +163,23 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                             i++;
                         }
                         if (tokens[i].value && tokens[i].type == R_BRACE) {
-                            return PARSING_SUCCESSFUL;
+                            depth--;
+                            i++;
+                            if (tokens[i].value && tokens[i].type == COMMA) {
+                                // ignore the comma
+                                i++;
+                            }
+                            break;
                         }
+                        count_2++;
+                    }
+                    if (tokens[i].value && tokens[i].type == COMMA) {
+                        // ignore the comma
+                        i++;
                     }
                     dependency_count++;
                 }
+                result->dependency_count = dependency_count;
             }
         }
     }
@@ -212,7 +224,7 @@ const char* const TEST = "// comment\n .{"
 int main()
 {
     const char* data = TEST;
-    printf("%s\n\n", TEST);
+    // printf("%s\n\n", TEST);
     Token tokens[700];
     const size_t max_tokens = 700;
 
@@ -220,7 +232,7 @@ int main()
         printf("Tokenizing error.\n");
     } else {
         for (int i = 0; tokens[i].value; i++) {
-            printf("%s\n", tokens[i].value);
+            // printf("%s\n", tokens[i].value);
         }
         build_zig_zon_parsed_data results;
         if (parse(tokens, &results) != PARSING_SUCCESSFUL) {
@@ -231,8 +243,13 @@ int main()
         printf("minimum_zig_version: %s\n", results.minimum_zig_version);
         printf("version: %s\n", results.version);
         printf("fingerprint: %llu\n", results.fingerprint);
-        for(int i = 0; i < 2; i++) {
-            printf("%s\n", results.dependencies[i].name);
+
+        for (int i = 0; i < 4; i++) {
+            printf("Denenpency: %s\n", results.dependencies[i].name);
+            printf("Denenpency: %s\n", results.dependencies[i].hash);
+            printf("Denenpency: %d\n", results.dependencies[i].lazy);
+            printf("Denenpency: %s\n", results.dependencies[i].url);
+            printf("Denenpency: %s\n", results.dependencies[i].path);
         }
     }
 

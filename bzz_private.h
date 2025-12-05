@@ -32,6 +32,7 @@ typedef struct {
 } Token;
 
 typedef struct {
+    char* name;
     char* url;
     char* hash;
     _Bool lazy;
@@ -40,7 +41,7 @@ typedef struct {
 
 typedef struct {
     char* name;
-    uint64_t* fingerprint;
+    unsigned long long fingerprint;
     char* version;
     char* minimum_zig_version;
     Dependency* dependencies;

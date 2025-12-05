@@ -1,5 +1,6 @@
 #include "./bzz_private.h"
 #include <stdio.h>
+#include <string.h>
 
 /**
  * Parses tokens to get meaningful information
@@ -11,27 +12,28 @@
  *
  * @return PARSING_ERROR or PARSING_SUCCESSFUL.
  */
-int parse(Token* tokens, build_zig_zon_parsed_data* result)
+int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
 {
     int depth = 0;
-    for (int i = 0; tokens[i].value != NULL; i++) {
+    for (int i = 0; tokens[i].value; i++) {
         // printf("TOKEN: %s\n", tokens[i].value);
-        if (tokens[i].type == L_BRACE)
+        if (tokens[i].type == L_BRACE) {
             depth++;
-        if (tokens[i].type == R_BRACE)
+            continue;
+        } else if (tokens[i].type == R_BRACE) {
             depth--;
-
-        if (depth == 1 && tokens[i].type == IDENTIFIER) {
+            continue;
+        } else if (depth == 1 && tokens[i].type == IDENTIFIER) {
             if (strcmp(tokens[i].value, "minimum_zig_version") == 0) {
                 i++;
-                if (tokens[i].value != NULL && tokens[i].type != EQUALS) {
+                if (!tokens[i].value || tokens[i].type != EQUALS) {
                     return PARSING_ERROR;
                 }
                 i++;
-                if (tokens[i].value != NULL && tokens[i].type != STRING) {
+                if (!tokens[i].value || tokens[i].type != STRING) {
                     return PARSING_ERROR;
                 } else {
-                    printf("Version: %s\n", tokens[i].value);
+                    result->minimum_zig_version = tokens[i].value;
                 }
             }
             // Problem I was facing here is that in older build.zig.zon
@@ -40,122 +42,131 @@ int parse(Token* tokens, build_zig_zon_parsed_data* result)
             // both the ways.
             else if (strcmp(tokens[i].value, "name") == 0) {
                 i++;
-                if (tokens[i].value != NULL && tokens[i].type != EQUALS) {
+                if (!tokens[i].value || tokens[i].type != EQUALS) {
                     return PARSING_ERROR;
                 }
                 i++;
-                if (tokens[i].value != NULL && (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
+                if (tokens[i].value && tokens[i].type == DOT) {
+                    // if its identifier 
+                    i++;
+                }
+                if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
                     return PARSING_ERROR;
                 } else {
-                    printf("name: %s\n", tokens[i].value);
+                    result->name = tokens[i].value;
                 }
             } else if (strcmp(tokens[i].value, "version") == 0) {
                 i++;
-                if (tokens[i].value != NULL && tokens[i].type != EQUALS) {
+                if (tokens[i].value == NULL || tokens[i].type != EQUALS) {
                     return PARSING_ERROR;
                 }
                 i++;
-                if (tokens[i].value != NULL && tokens[i].type != STRING) {
+                if (tokens[i].value == NULL || tokens[i].type != STRING) {
                     return PARSING_ERROR;
                 } else {
-                    printf("version: %s\n", tokens[i].value);
+                    result->version = strdup(tokens[i].value);
                 }
             } else if (strcmp(tokens[i].value, "fingerprint") == 0) {
                 i++;
-                if (tokens[i].value != NULL && tokens[i].type != EQUALS) {
+                if (!tokens[i].value || tokens[i].type != EQUALS) {
                     return PARSING_ERROR;
                 }
                 i++;
-                if (tokens[i].value != NULL && tokens[i].type != STRING) {
+                if (!tokens[i].value || tokens[i].type != HEXADECIMAL) {
                     return PARSING_ERROR;
                 } else {
-                    printf("fingerprint: %s\n", tokens[i].value);
+                    result->fingerprint = strtoull(tokens[i].value, NULL, 16);
                 }
-            }
-        }
-    }
-    for (int i = 0; tokens[i].value != NULL; i++) {
-        if (strcmp(tokens[i].value, "dependencies") == 0) {
-            i++;
-            if (tokens[i].value != NULL && tokens[i].type != EQUALS) {
-                return PARSING_ERROR;
-            }
-            i++;
-            if (tokens[i].value != NULL && tokens[i].type != DOT) {
-                return PARSING_ERROR;
-            } else {
-                printf("DOT: %s\n", tokens[i].value);
-            }
-            i++;
-            if (tokens[i].value != NULL && tokens[i].type != L_BRACE) {
-                return PARSING_ERROR;
-            } else {
-                printf("L brace: %s\n", tokens[i].value);
-            }
-            i++;
-            // from here we will put a loop to loop the dependencies
-            while (1) {
-                if (tokens[i].value != NULL && tokens[i].type != DOT) {
+            } else if (strcmp(tokens[i].value, "dependencies") == 0) {
+                i++;
+                if (!tokens[i].value || tokens[i].type != EQUALS) {
+                    return PARSING_ERROR;
+                }
+                i++;
+                if (!tokens[i].value || tokens[i].type != DOT) {
+                    return PARSING_ERROR;
+                }
+                i++;
+                if (!tokens[i].value || tokens[i].type != L_BRACE) {
                     return PARSING_ERROR;
                 } else {
-                    printf("DOT: %s\n", tokens[i].value);
+                    depth++;
                 }
                 i++;
-                printf("NOW THE THINGY: %s\n", tokens[i].value);
-                // I had ignored the @ symbol
-                if (tokens[i].value != NULL && (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
-                    return PARSING_ERROR;
-                } else {
-                    printf("NOW THE THINGY: %s\n", tokens[i].value);
-                }
-                i++;
-                if (tokens[i].value != NULL && tokens[i].type != EQUALS) {
-                    return PARSING_ERROR;
-                }
-                i++;
-                if (tokens[i].value != NULL && tokens[i].type != DOT) {
-                    return PARSING_ERROR;
-                } else {
-                    printf("DOT: %s\n", tokens[i].value);
-                }
-                i++;
-                if (tokens[i].value != NULL && tokens[i].type != L_BRACE) {
-                    return PARSING_ERROR;
-                } else {
-                    printf("L brace: %s\n", tokens[i].value);
-                }
-                i++;
-                int count_2 = 0;
-                while (count_2 < 5) {
-                    if (tokens[i].value != NULL && tokens[i].type != DOT) {
+                // from here we will put a loop to loop the dependencies
+                int dependency_count = 0;
+                int dependency_capacity = 20;
+                result->dependencies = malloc(sizeof(Dependency)*dependency_capacity);
+                while (tokens[i].value) {
+                    if(dependency_count == dependency_capacity-2) {
+                        dependency_capacity += 20;
+                        result->dependencies = realloc(result->dependencies, sizeof(Dependency)*dependency_capacity);
+                    }
+                    if (tokens[i].type != DOT) {
+                        return PARSING_ERROR;
+                    }
+                    i++;
+                    // I had ignored the @ symbol
+                    if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
                         return PARSING_ERROR;
                     } else {
-                        printf("DOT: %s\n", tokens[i].value);
+                        result->dependencies[dependency_count].name = tokens[i].value;
                     }
                     i++;
-                    if (tokens[i].value != NULL && (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
+                    if (!tokens[i].value || tokens[i].type != EQUALS) {
+                        return PARSING_ERROR;
+                    }
+                    i++;
+                    if (!tokens[i].value || tokens[i].type != DOT) {
+                        return PARSING_ERROR;
+                    }
+                    i++;
+                    if (!tokens[i].value || tokens[i].type != L_BRACE) {
                         return PARSING_ERROR;
                     } else {
-                        printf("NOW THE THINGY: %s\n", tokens[i].value);
+                        depth++;
                     }
                     i++;
-                    if (tokens[i].value != NULL && tokens[i].type != EQUALS) {
-                        return PARSING_ERROR;
-                    }
-                    i++;
-                    if (tokens[i].value != NULL && (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
-                        return PARSING_ERROR;
-                    } else {
-                        printf("NOW THE THINGY: %s\n", tokens[i].value);
-                    }
-                    i++;
-                    if (tokens[i].value != NULL && tokens[i].type == COMMA) {
-                        // ignore the comma
+                    int count_2 = 0;
+                    while (count_2 < 5 && tokens[i].value) {
+                        char* key_name;
+                        if (tokens[i].type != DOT) {
+                            return PARSING_ERROR;
+                        }
                         i++;
+                        if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
+                            return PARSING_ERROR;
+                        } else {
+                            key_name = tokens[i].value;
+                        }
+                        i++;
+                        if (!tokens[i].value || tokens[i].type != EQUALS) {
+                            return PARSING_ERROR;
+                        }
+                        i++;
+                        if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
+                            return PARSING_ERROR;
+                        } else {
+                            if(strcmp(key_name, "url")){
+                                result->dependencies[dependency_count].url = tokens[i].value;
+                            } else if (strcmp(key_name, "hash")) {
+                                result->dependencies[dependency_count].hash = tokens[i].value;
+                            } else if (strcmp(key_name, "path")) {
+                                result->dependencies[dependency_count].path = tokens[i].value;
+                            } else if (strcmp(key_name, "lazy")) {
+                                result->dependencies[dependency_count].lazy = strcmp(tokens[i].value, "true") ? 1 : 0;
+                            }
+                        }
+                        i++;
+                        if (tokens[i].value && tokens[i].type == COMMA) {
+                            // ignore the comma
+                            i++;
+                        }
+                        if (tokens[i].value && tokens[i].type == R_BRACE) {
+                            return PARSING_SUCCESSFUL;
+                        }
                     }
-                    if (tokens[i].value != NULL && tokens[i].type == R_BRACE) {
-                        return PARSING_SUCCESSFUL;
-                    }
+                    dependency_count++;
                 }
             }
         }
@@ -166,49 +177,62 @@ int parse(Token* tokens, build_zig_zon_parsed_data* result)
 
 const char* const TEST = "// comment\n .{"
                          "    .something = 10,"
-                         "    .name = .capy,"
-                         "    .fingerprint = 0x4724968847bbbb92,"
-                         "    .version = \"0.4.1\","
-                         "    .minimum_zig_version = \"0.14.1\","
+                         "    .name = .something,"
+                         "    .fingerprint = 0x1234,"
+                         "    .version = \"0.10.0\","
+                         "    .minimum_zig_version = \"0.10.0\","
                          "    .dependencies = .{"
-                         "        .@\"zig-objc\" = .{"
+                         "        .@\"something\" = .{"
                          "            .url = "
-                         "\"https://github.com/mitchellh/zig-objc/archive/"
-                         "362d12f4d91dfde84668e0befc5a8ca76659965a.zip\","
+                         "\"https://example.com/some/route\","
                          "            .hash = "
-                         "\"12206038da3a8d42de25babfadaa3b8fb01c223850a1f1ce309034172d150df61a8c\","
+                         "\"anything random\","
                          "            .lazy = true,"
                          "        },"
                          "        .macos_sdk = .{"
                          "            .url = "
-                         "\"https://github.com/mitchellh/zig-build-macos-sdk/archive/"
-                         "a4ea24f105902111633c6ae9f888b676ac5e36df.tar.gz\","
+                         "\"https://example.com/something/something"
+                         "some.tar.gz\","
                          "            .hash = "
-                         "\"12209cc9ee372456eda52b71cf9ae77dcc707fa42c9f9d68996b5bf7495b53229c2e\","
+                         "\"something random\","
                          "            .lazy = true,"
                          "        },"
                          "        .zigimg = .{"
                          "            .url = "
-                         "\"git+https://github.com/zigimg/"
-                         "zigimg#74caab5edd7c5f1d2f7d87e5717435ce0f0affa1\","
+                         "\"git+https://example.com/something/"
+                         "something#some_hash\","
                          "            .hash = "
-                         "\"zigimg-0.1.0-8_eo2nWlEgCddu8EGLOM_RkYshx3sC8tWv-yYA4-htS6\","
+                         "\"some random hash\","
                          "        },"
                          "    },"
                          "    .paths = .{"
                          "},"
                          "}";
 
-int main() {
-    const char* build_zig_zon_raw_data = TEST;
+int main()
+{
+    const char* data = TEST;
+    printf("%s\n\n", TEST);
     Token tokens[700];
     const size_t max_tokens = 700;
 
-    if (tokenize(build_zig_zon_raw_data, tokens, max_tokens) == TOKENIZING_ERROR) {
+    if (tokenize(data, tokens, max_tokens) != TOKENIZING_SUCCESSFULL) {
         printf("Tokenizing error.\n");
     } else {
         for (int i = 0; tokens[i].value; i++) {
-            printf("%s", tokens[i].value);
+            printf("%s\n", tokens[i].value);
+        }
+        build_zig_zon_parsed_data results;
+        if (parse(tokens, &results) != PARSING_SUCCESSFUL) {
+            printf("Parsing error.\n");
+        }
+
+        printf("name: %s\n", results.name);
+        printf("minimum_zig_version: %s\n", results.minimum_zig_version);
+        printf("version: %s\n", results.version);
+        printf("fingerprint: %llu\n", results.fingerprint);
+        for(int i = 0; i < 2; i++) {
+            printf("%s\n", results.dependencies[i].name);
         }
     }
 

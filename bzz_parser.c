@@ -93,11 +93,11 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                 }
                 i++;
                 // from here we will put a loop to loop the dependencies
-                int dependency_count = 0;
+                result->dependency_count = 0;
                 int dependency_capacity = 20;
                 result->dependencies = malloc(sizeof(Dependency) * dependency_capacity);
                 while (tokens[i].value && depth > 1) {
-                    if (dependency_count == dependency_capacity - 2) {
+                    if (result->dependency_count == dependency_capacity - 2) {
                         dependency_capacity += 20;
                         result->dependencies = realloc(result->dependencies, sizeof(Dependency) * dependency_capacity);
                     }
@@ -110,7 +110,7 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                         return PARSING_ERROR;
                     } else {
                         printf("%s\n", tokens[i].value);
-                        result->dependencies[dependency_count].name = tokens[i].value;
+                        result->dependencies[result->dependency_count].name = tokens[i].value;
                     }
                     i++;
                     if (!tokens[i].value || tokens[i].type != EQUALS) {
@@ -148,13 +148,13 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                             return PARSING_ERROR;
                         } else {
                             if (strcmp(key_name, "url") == 0) {
-                                result->dependencies[dependency_count].url = tokens[i].value;
+                                result->dependencies[result->dependency_count].url = tokens[i].value;
                             } else if (strcmp(key_name, "hash") == 0) {
-                                result->dependencies[dependency_count].hash = tokens[i].value;
+                                result->dependencies[result->dependency_count].hash = tokens[i].value;
                             } else if (strcmp(key_name, "path") == 0) {
-                                result->dependencies[dependency_count].path = tokens[i].value;
+                                result->dependencies[result->dependency_count].path = tokens[i].value;
                             } else if (strcmp(key_name, "lazy") == 0) {
-                                result->dependencies[dependency_count].lazy = strcmp(tokens[i].value, "true") == 0 ? 1 : 0;
+                                result->dependencies[result->dependency_count].lazy = strcmp(tokens[i].value, "true") == 0 ? 1 : 0;
                             }
                         }
                         i++;
@@ -177,9 +177,8 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                         // ignore the comma
                         i++;
                     }
-                    dependency_count++;
+                    result->dependency_count++;
                 }
-                result->dependency_count = dependency_count;
             }
         }
     }
@@ -244,12 +243,12 @@ int main()
         printf("version: %s\n", results.version);
         printf("fingerprint: %llu\n", results.fingerprint);
 
-        for (int i = 0; i < 4; i++) {
-            printf("Denenpency: %s\n", results.dependencies[i].name);
-            printf("Denenpency: %s\n", results.dependencies[i].hash);
-            printf("Denenpency: %d\n", results.dependencies[i].lazy);
-            printf("Denenpency: %s\n", results.dependencies[i].url);
-            printf("Denenpency: %s\n", results.dependencies[i].path);
+        for (int i = 0; i < results.dependency_count; i++) {
+            printf("Name: %s\n", results.dependencies[i].name);
+            printf("    > Hash: %s\n", results.dependencies[i].hash);
+            printf("    > Lazy: %d\n", results.dependencies[i].lazy);
+            printf("    > Url: %s\n", results.dependencies[i].url);
+            printf("    > Path: %s\n", results.dependencies[i].path);
         }
     }
 

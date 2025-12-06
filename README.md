@@ -1,4 +1,4 @@
-# High performance build.zig.zon parser in C
+# High performance build.zig.zon parser
 
 This uses no regex.h, just uses loops.
 

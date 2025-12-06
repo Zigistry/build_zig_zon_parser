@@ -77,6 +77,7 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result);
 int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max_tokens);
 void print_build_zig_zon_parsed_data(build_zig_zon_parsed_data data);
 void free_tokens(Token* tokens);
+void free_build_zig_zon_parsed_data(build_zig_zon_parsed_data* data);
 
 #ifdef __cplusplus
 }

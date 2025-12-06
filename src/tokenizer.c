@@ -1,12 +1,11 @@
-#include "./bzz_private.h"
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "../include/bzz.h"
 
 /**
  * Basic build.zig.zon tokenizer.
  * @param build_zig_zon_raw_data is the raw build.zig.zon data.
+ *
  * @param tokens is pre allocated memory. tokens are null terminated by this function.
+ *
  * @return TOKENIZING_ERROR or TOKENIZING_SUCCESSFULL.
  */
 int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max_tokens)
@@ -14,15 +13,18 @@ int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max
     int i = 0, count = 0;
     // I am doing - 1 to add a null terminator and avoid buffer overflow
     while (build_zig_zon_raw_data[i] && count < max_tokens - 1) {
-        if (build_zig_zon_raw_data[i] == ' ') {
+        if (isspace(build_zig_zon_raw_data[i])) {
+            i++;
+            continue;
         } else if (build_zig_zon_raw_data[i] == '/') {
             i++;
             if (build_zig_zon_raw_data[i] && build_zig_zon_raw_data[i] == '/') {
                 // this is a comment
-                while (build_zig_zon_raw_data[i] != '\n') {
+                while (build_zig_zon_raw_data[i] && build_zig_zon_raw_data[i] != '\n') {
                     i++;
                 }
             } else {
+                LOG_ERROR("Found a '/' not supported in build.zig.zon.");
                 return TOKENIZING_ERROR;
             }
         } else if (build_zig_zon_raw_data[i] == '.') {
@@ -122,10 +124,10 @@ int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max
                         }
                         my_integer[pos] = build_zig_zon_raw_data[i];
                     } while (build_zig_zon_raw_data[i] && ((build_zig_zon_raw_data[i] >= '0' && build_zig_zon_raw_data[i] <= '9') || (build_zig_zon_raw_data[i] >= 'A' && build_zig_zon_raw_data[i] <= 'F') || (build_zig_zon_raw_data[i] >= 'a' && build_zig_zon_raw_data[i] <= 'f')));
+                    my_integer[pos] = '\0';
                     tokens[count++] = (Token) { HEXADECIMAL, my_integer };
                 } else {
-                    printf("Integer can't start with 0.");
-                    return PARSING_ERROR;
+                    return TOKENIZING_ERROR;
                 }
             }
         } else if (build_zig_zon_raw_data[i] >= '1' && build_zig_zon_raw_data[i] <= '9') {
@@ -150,6 +152,13 @@ int tokenize(const char* build_zig_zon_raw_data, Token* tokens, const size_t max
     return TOKENIZING_SUCCESSFULL;
 }
 
+/**
+ * Frees the tokes that were allocated.
+ *
+ * @param tokens List of tokens that were passed for tokenization
+ *
+ * @return Nothing
+ */
 void free_tokens(Token* tokens)
 {
     for (int i = 0; tokens[i].value; i++) {
@@ -158,20 +167,3 @@ void free_tokens(Token* tokens)
         }
     }
 }
-
-// int main()
-// {
-//     const char* build_zig_zon_raw_data = TEST;
-//     Token tokens[700];
-//     const size_t max_tokens = 700;
-
-//     if (tokenize(build_zig_zon_raw_data, tokens, max_tokens) == TOKENIZING_ERROR) {
-//         printf("Tokenizing error.\n");
-//     } else {
-//         for (int i = 0; tokens[i].value; i++) {
-//             printf("%s", tokens[i].value);
-//         }
-//     }
-
-//     free_tokens(tokens);
-// }

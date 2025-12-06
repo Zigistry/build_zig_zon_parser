@@ -1,6 +1,4 @@
-#include "./bzz_private.h"
-#include <stdio.h>
-#include <string.h>
+#include "../include/bzz.h"
 
 /**
  * Parses tokens to get meaningful information
@@ -9,8 +7,10 @@
  *
  * @param result The resulting pointer to a build_zig_zon_parsed_data
  * struct. The data would be written to this.
- *
+ * 
  * @return PARSING_ERROR or PARSING_SUCCESSFUL.
+ *
+ * TODO: Implement paths parsing.
  */
 int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
 {
@@ -18,18 +18,18 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
     for (int i = 0; tokens[i].value; i++) {
         if (tokens[i].type == L_BRACE) {
             depth++;
-            continue;
         } else if (tokens[i].type == R_BRACE) {
             depth--;
-            continue;
         } else if (depth == 1 && tokens[i].type == IDENTIFIER) {
             if (strcmp(tokens[i].value, "minimum_zig_version") == 0) {
                 i++;
                 if (!tokens[i].value || tokens[i].type != EQUALS) {
+                    LOG_ERROR("Expected '=' after \"minimum_zig_version\".'\n");
                     return PARSING_ERROR;
                 }
                 i++;
                 if (!tokens[i].value || tokens[i].type != STRING) {
+                    LOG_ERROR("\"minimum_zig_version\" is of type string. Found: %s\n", tokens[i].value);
                     return PARSING_ERROR;
                 } else {
                     result->minimum_zig_version = tokens[i].value;
@@ -42,14 +42,20 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
             else if (strcmp(tokens[i].value, "name") == 0) {
                 i++;
                 if (!tokens[i].value || tokens[i].type != EQUALS) {
+                    LOG_ERROR("Expected '=' after \"name\".'\n");
+
                     return PARSING_ERROR;
                 }
                 i++;
                 if (tokens[i].value && tokens[i].type == DOT) {
-                    // if its identifier
+                    // if its identifier, because zig 0.12.0 had strings
+                    // as name, now we have enum literal, both should be
+                    // compatible.
                     i++;
                 }
+                // Hence, can be a string or an identifier.
                 if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
+                    LOG_ERROR("Expected String or an Identifier as name, found: %s'\n", tokens[i].value);
                     return PARSING_ERROR;
                 } else {
                     result->name = tokens[i].value;
@@ -57,21 +63,25 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
             } else if (strcmp(tokens[i].value, "version") == 0) {
                 i++;
                 if (tokens[i].value == NULL || tokens[i].type != EQUALS) {
+                    LOG_ERROR("Expected '=' after \"version\".'\n");
                     return PARSING_ERROR;
                 }
                 i++;
                 if (tokens[i].value == NULL || tokens[i].type != STRING) {
+                    LOG_ERROR("Expected String as version, found: %s'\n", tokens[i].value);
                     return PARSING_ERROR;
                 } else {
-                    result->version = strdup(tokens[i].value);
+                    result->version = tokens[i].value;
                 }
             } else if (strcmp(tokens[i].value, "fingerprint") == 0) {
                 i++;
                 if (!tokens[i].value || tokens[i].type != EQUALS) {
+                    LOG_ERROR("Expected '=' after \"fingerprint\".'\n");
                     return PARSING_ERROR;
                 }
                 i++;
                 if (!tokens[i].value || tokens[i].type != HEXADECIMAL) {
+                    LOG_ERROR("Expected Hexadecimal as fingerprint, found: %s'\n", tokens[i].value);
                     return PARSING_ERROR;
                 } else {
                     result->fingerprint = strtoull(tokens[i].value, NULL, 16);
@@ -79,14 +89,17 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
             } else if (strcmp(tokens[i].value, "dependencies") == 0) {
                 i++;
                 if (!tokens[i].value || tokens[i].type != EQUALS) {
+                    LOG_ERROR("Expected '=' after \"dependencies\".\n");
                     return PARSING_ERROR;
                 }
                 i++;
                 if (!tokens[i].value || tokens[i].type != DOT) {
+                    LOG_ERROR("Expected '.' after \"dependencies = \". before '{'\n");
                     return PARSING_ERROR;
                 }
                 i++;
                 if (!tokens[i].value || tokens[i].type != L_BRACE) {
+                    LOG_ERROR("Expected '{' after \"dependencies = .\" found: %s\n", tokens[i].value);
                     return PARSING_ERROR;
                 } else {
                     depth++;
@@ -97,31 +110,44 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                 int dependency_capacity = 20;
                 result->dependencies = malloc(sizeof(Dependency) * dependency_capacity);
                 while (tokens[i].value && depth > 1) {
+                    if (tokens[i].value && tokens[i].type == R_BRACE) {
+                        depth--;
+                        i++;
+                        if (tokens[i].value && tokens[i].type == COMMA) {
+                            // ignore the comma
+                            i++;
+                        }
+                        break;
+                    }
                     if (result->dependency_count == dependency_capacity - 2) {
                         dependency_capacity += 20;
                         result->dependencies = realloc(result->dependencies, sizeof(Dependency) * dependency_capacity);
                     }
                     if (tokens[i].type != DOT) {
+                        LOG_ERROR("Expected '.' inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                         return PARSING_ERROR;
                     }
                     i++;
                     // I had ignored the @ symbol
                     if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
+                        LOG_ERROR("Expected String or Identifier after '.' inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                         return PARSING_ERROR;
                     } else {
-                        printf("%s\n", tokens[i].value);
                         result->dependencies[result->dependency_count].name = tokens[i].value;
                     }
                     i++;
                     if (!tokens[i].value || tokens[i].type != EQUALS) {
+                        LOG_ERROR("Expected '=' after key inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                         return PARSING_ERROR;
                     }
                     i++;
                     if (!tokens[i].value || tokens[i].type != DOT) {
+                        LOG_ERROR("Expected '.' after '=' inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                         return PARSING_ERROR;
                     }
                     i++;
                     if (!tokens[i].value || tokens[i].type != L_BRACE) {
+                        LOG_ERROR("Expected '{' after '.' inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                         return PARSING_ERROR;
                     } else {
                         depth++;
@@ -131,20 +157,24 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                     while (count_2 < 5 && tokens[i].value) {
                         char* key_name;
                         if (tokens[i].type != DOT) {
+                            LOG_ERROR("Expected '.' inside body of a dependency inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                             return PARSING_ERROR;
                         }
                         i++;
                         if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
+                            LOG_ERROR("Expected String or Identifier inside body of a dependency after '.' inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                             return PARSING_ERROR;
                         } else {
                             key_name = tokens[i].value;
                         }
                         i++;
                         if (!tokens[i].value || tokens[i].type != EQUALS) {
+                            LOG_ERROR("Expected '=' inside body of a dependency after key inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                             return PARSING_ERROR;
                         }
                         i++;
                         if (!tokens[i].value || (tokens[i].type != STRING && tokens[i].type != IDENTIFIER)) {
+                            LOG_ERROR("Expected String or Identifier inside body of a dependency after key inside \"dependencies = {...}\". found: %s\n", tokens[i].value);
                             return PARSING_ERROR;
                         } else {
                             if (strcmp(key_name, "url") == 0) {
@@ -155,6 +185,8 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
                                 result->dependencies[result->dependency_count].path = tokens[i].value;
                             } else if (strcmp(key_name, "lazy") == 0) {
                                 result->dependencies[result->dependency_count].lazy = strcmp(tokens[i].value, "true") == 0 ? 1 : 0;
+                            } else {
+                                LOG_WARNING("Found unknown parameter inside a dependency inside \"dependencies={...}\". found: %s.\n", tokens[i].value);
                             }
                         }
                         i++;
@@ -186,71 +218,19 @@ int parse(const Token* const tokens, build_zig_zon_parsed_data* result)
     return PARSING_SUCCESSFUL;
 }
 
-const char* const TEST = "// comment\n .{"
-                         "    .something = 10,"
-                         "    .name = .something,"
-                         "    .fingerprint = 0x1234,"
-                         "    .version = \"0.10.0\","
-                         "    .minimum_zig_version = \"0.10.0\","
-                         "    .dependencies = .{"
-                         "        .@\"something\" = .{"
-                         "            .url = "
-                         "\"https://example.com/some/route\","
-                         "            .hash = "
-                         "\"anything random\","
-                         "            .lazy = true,"
-                         "        },"
-                         "        .macos_sdk = .{"
-                         "            .url = "
-                         "\"https://example.com/something/something"
-                         "some.tar.gz\","
-                         "            .hash = "
-                         "\"something random\","
-                         "            .lazy = true,"
-                         "        },"
-                         "        .zigimg = .{"
-                         "            .url = "
-                         "\"git+https://example.com/something/"
-                         "something#some_hash\","
-                         "            .hash = "
-                         "\"some random hash\","
-                         "        },"
-                         "    },"
-                         "    .paths = .{"
-                         "},"
-                         "}";
-
-int main()
+/**
+ * Prints build_zig_zon_parsed_data struct.
+ * @param data build_zig_zon_parsed_data struct.
+ *
+ * @return Nothing
+ */
+void free_build_zig_zon_parsed_data(build_zig_zon_parsed_data* data)
 {
-    const char* data = TEST;
-    // printf("%s\n\n", TEST);
-    Token tokens[700];
-    const size_t max_tokens = 700;
-
-    if (tokenize(data, tokens, max_tokens) != TOKENIZING_SUCCESSFULL) {
-        printf("Tokenizing error.\n");
-    } else {
-        for (int i = 0; tokens[i].value; i++) {
-            // printf("%s\n", tokens[i].value);
-        }
-        build_zig_zon_parsed_data results;
-        if (parse(tokens, &results) != PARSING_SUCCESSFUL) {
-            printf("Parsing error.\n");
-        }
-
-        printf("name: %s\n", results.name);
-        printf("minimum_zig_version: %s\n", results.minimum_zig_version);
-        printf("version: %s\n", results.version);
-        printf("fingerprint: %llu\n", results.fingerprint);
-
-        for (int i = 0; i < results.dependency_count; i++) {
-            printf("Name: %s\n", results.dependencies[i].name);
-            printf("    > Hash: %s\n", results.dependencies[i].hash);
-            printf("    > Lazy: %d\n", results.dependencies[i].lazy);
-            printf("    > Url: %s\n", results.dependencies[i].url);
-            printf("    > Path: %s\n", results.dependencies[i].path);
-        }
+    if (!data)
+        return;
+    if (data->dependencies) {
+        free(data->dependencies);
+        data->dependencies = NULL;
     }
-
-    free_tokens(tokens);
+    data->dependency_count = 0;
 }

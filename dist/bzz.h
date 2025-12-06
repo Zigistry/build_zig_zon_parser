@@ -1,3 +1,9 @@
+/*
+    Copyright (2025) Rohan Vashisht
+    Repository: https://github.com/zigistry/build_zig_zon_parser
+    Check the LICENSE file for more information
+*/
+
 #ifndef BZZ_H
 #define BZZ_H
 

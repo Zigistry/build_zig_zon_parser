@@ -1,6 +1,6 @@
 # High performance Zig build.zig.zon parser
 
-This uses no regex.h, just uses loops.
+This uses no regex, just uses loops.
 
 ## How to use?
 
